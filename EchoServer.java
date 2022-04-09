@@ -1,5 +1,7 @@
 import java.io.*;
 import java.net.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.lang.Thread;
 
 public class EchoServer {
@@ -25,6 +27,18 @@ public class EchoServer {
 }
 
 class EchoHandler extends Thread {
+	
+	static final String OK_HEADER = "HTTP/1.1 200 OK";
+	
+	static final String HTML_START =
+			"<html>" +
+			"<title>HTTP Server in java</title>" +
+			"<body>";
+
+	static final String HTML_END =
+			"</body>" +
+			"</html>";
+			
     Socket client;
     EchoHandler (Socket client) {
         this.client = client;
@@ -32,19 +46,33 @@ class EchoHandler extends Thread {
 
     public void run () {
         try {
-            BufferedReader reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
-            PrintWriter writer = new PrintWriter(client.getOutputStream(), true);
+    	   BufferedReader inFromClient = new BufferedReader(new InputStreamReader(client.getInputStream()));
+    	   PrintWriter outToClient = new PrintWriter(client.getOutputStream(), true);
+    	   
+    	   DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");  
+    	   LocalDateTime now = LocalDateTime.now();  
+    	   
 
-            while (true) {
-                // TODO change response of a server to the client
-                String line = reader.readLine();
-                System.out.println(line);
-                writer.println("Server Response: " + line);
-
-                if (client.getInputStream().read() == -1){
-                    break;
-                }
-            }
+    	   String requestString = inFromClient.readLine();
+           
+    	   String localAddressString = client.getLocalAddress().getHostAddress();
+    	   int localPortInt = client.getLocalPort();
+    	   
+    	   String responseString = 
+    			   HTML_START +
+    			   requestString + "</br>" + 
+    			   "Date:" + now + "</br>" +
+    			   "Server Address: " + localAddressString + ":" + localPortInt + "</br>" +
+    			   "Client Address: " + client.getRemoteSocketAddress().toString() + "</br>" +
+    			   HTML_END;
+    	   
+    	   String contentLengthLine = "Content-Length: " + responseString.length() + "\r\n";
+    	   
+    	   outToClient.println(OK_HEADER);
+    	   outToClient.println("Content-Type: text/html");
+    	   outToClient.println(contentLengthLine);
+    	   outToClient.println(responseString);
+            
         }
         catch (Exception e) {
             System.err.println("Exception caught: client disconnected.");
